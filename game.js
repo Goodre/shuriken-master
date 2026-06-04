@@ -1366,6 +1366,13 @@ function loop(now) {
   requestAnimationFrame(loop);
 }
 
+function handleLaunchInput() {
+  if (ui.shop.classList.contains("is-visible")) return;
+  if (game.mode === "transition" || game.mode === "gameover") return;
+  if (game.mode !== "playing") return;
+  launch();
+}
+
 canvas.addEventListener("pointerdown", (event) => {
   event.preventDefault();
   if (ui.shop.classList.contains("is-visible")) return;
@@ -1374,8 +1381,13 @@ canvas.addEventListener("pointerdown", (event) => {
     if (isInsideMenuHero(event.clientX - rect.left, event.clientY - rect.top)) startTransition();
     return;
   }
-  if (game.mode === "transition" || game.mode === "gameover") return;
-  launch();
+  handleLaunchInput();
+});
+
+window.addEventListener("keydown", (event) => {
+  if (event.code !== "Space") return;
+  event.preventDefault();
+  handleLaunchInput();
 });
 
 ui.primaryBtn.addEventListener("click", () => {
