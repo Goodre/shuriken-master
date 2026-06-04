@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="uk">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Shuriken Master Web</title>
+    <link rel="stylesheet" href="styles.css?v=20260604-ui15">
+  </head>
+  <body data-mode="menu" data-shop="closed">
+    <main class="game-shell">
+      <canvas id="game" aria-label="Shuriken Master game canvas"></canvas>
+
+      <div class="hud" aria-live="polite">
+        <div class="meter">
+          <span>Рахунок</span>
+          <strong id="score">0</strong>
+        </div>
+        <div class="meter">
+          <span>Хвиля</span>
+          <strong id="wave">1</strong>
+        </div>
+        <div class="meter best-meter">
+          <img src="assets/TrophyGold.png" alt="">
+          <strong id="best">0</strong>
+        </div>
+        <div class="meter coin-meter">
+          <img src="assets/Crystal_3.png" alt="">
+          <strong id="coins">0</strong>
+        </div>
+      </div>
+
+      <div class="toolrow">
+        <button id="pauseBtn" class="icon-btn" type="button" title="Пауза" aria-label="Пауза"></button>
+        <button id="shopBtn" class="icon-btn" type="button" title="Скіни" aria-label="Скіни"></button>
+        <button id="restartBtn" class="icon-btn" type="button" title="Заново" aria-label="Заново"></button>
+      </div>
+
+      <section id="overlay" class="overlay">
+        <img class="logo" src="assets/Shuriken-Master.png" alt="Shuriken Master">
+        <h1 id="overlayTitle">Shuriken Master</h1>
+        <p id="overlayText">Збивай метеорити, пропускай фіолетові з хрестом, збирай золото.</p>
+        <button id="primaryBtn" class="primary-btn" type="button">Заново</button>
+        <div id="overlayStats" class="overlay-stats" hidden>
+          <div class="stat-line">
+            <img src="assets/TrophyGold.png" alt="">
+            <strong id="deadScore">0</strong>
+          </div>
+          <div class="stat-line crystal-line">
+            <span>+</span>
+            <img src="assets/Crystal_3.png" alt="">
+            <strong id="deadCrystals">0</strong>
+          </div>
+        </div>
+        <div id="overlayActions" class="overlay-actions">
+          <button id="overlayRestartBtn" class="menu-action restart-action" type="button" title="Рестарт" aria-label="Рестарт"></button>
+          <button id="overlayHomeBtn" class="menu-action home-action" type="button" title="Головне меню" aria-label="Головне меню">ToMainMenu</button>
+        </div>
+      </section>
+
+      <section id="shop" class="shop" aria-label="Магазин скінів">
+        <button id="closeShopBtn" class="market-back" type="button" title="Назад" aria-label="Назад"></button>
+        <div class="market-coins">
+          <strong id="shopCoins">0</strong>
+          <img src="assets/Crystal_3.png" alt="">
+        </div>
+        <div class="market-preview">
+          <img id="shopPreview" src="assets/Asset 141.png" alt="">
+        </div>
+        <button class="market-price" id="shopPrice" type="button">
+          <img src="assets/Crystal_3.png" alt="">
+          <strong id="shopPriceValue">0</strong>
+        </button>
+        <div id="variantStrip" class="variant-strip" aria-label="Варіанти кольору"></div>
+        <div id="skinGrid" class="skin-grid"></div>
+      </section>
+    </main>
+
+    <script src="game.js?v=20260604-ui15"></script>
+  </body>
+</html>
