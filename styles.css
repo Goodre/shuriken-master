@@ -148,6 +148,11 @@ body[data-outer="mobile"][data-mode="transition"] #shopBtn {
   bottom: calc(-1 * var(--mobile-vpad) + max(12px, env(safe-area-inset-bottom)));
 }
 
+body[data-outer="mobile"] #exitBtn {
+  top: calc(-1 * var(--mobile-vpad) + max(10px, env(safe-area-inset-top)));
+  right: max(-11px, calc(env(safe-area-inset-right) - 11px));
+}
+
 body[data-outer="mobile"] .shop {
   top: calc(-1 * var(--mobile-vpad));
   left: 0;
@@ -358,9 +363,30 @@ body[data-mode="transition"] #pauseBtn {
   transition: transform 1.05s cubic-bezier(0.45, 0, 0.2, 1), opacity 0.85s ease;
 }
 
+#exitBtn {
+  position: absolute;
+  top: max(10px, env(safe-area-inset-top));
+  right: -11px;
+  z-index: 5;
+  display: block;
+  width: 94px;
+  height: 84px;
+  background-image: url("assets/Exit-1.png");
+  opacity: 1;
+  transform: translateX(0);
+  transition: transform 0.95s cubic-bezier(0.45, 0, 0.2, 1), opacity 0.78s ease;
+}
+
 body[data-mode="playing"] #shopBtn,
 body[data-mode="paused"] #shopBtn,
 body[data-mode="gameover"] #shopBtn {
+  display: none;
+}
+
+body[data-mode="playing"] #exitBtn,
+body[data-mode="paused"] #exitBtn,
+body[data-mode="gameover"] #exitBtn,
+body[data-shop="open"] #exitBtn {
   display: none;
 }
 
@@ -393,6 +419,13 @@ body[data-mode="transition"] #shopBtn {
   height: 78px;
   opacity: 0;
   transform: translateX(132px);
+}
+
+body[data-mode="transition"] #exitBtn {
+  display: block;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(120px) translateY(-10px);
 }
 
 #restartBtn {

@@ -19,6 +19,7 @@ const ui = {
   pauseBtn: document.getElementById("pauseBtn"),
   shopBtn: document.getElementById("shopBtn"),
   restartBtn: document.getElementById("restartBtn"),
+  exitBtn: document.getElementById("exitBtn"),
   shop: document.getElementById("shop"),
   closeShopBtn: document.getElementById("closeShopBtn"),
   shopCoins: document.getElementById("shopCoins"),
@@ -52,6 +53,7 @@ const imageNames = [
   "Ресурс 28.png",
   "Ресурс 30.png",
   "Shop_button 1.png",
+  "Exit-1.png",
   "PlayButt_ (2).png",
   "Lose_But.png",
   "Dead-menu.png",
@@ -1682,6 +1684,16 @@ function closeShop() {
   ui.shop.classList.remove("is-visible");
 }
 
+function exitGame() {
+  const bridge = window.ShurikenApp;
+  if (bridge && typeof bridge.exitApp === "function") {
+    bridge.exitApp();
+    return;
+  }
+
+  window.close();
+}
+
 function loop(now) {
   const dt = Math.min(0.032, (now - lastTime) / 1000);
   lastTime = now;
@@ -1753,6 +1765,7 @@ ui.primaryBtn.addEventListener("click", () => {
 
 ui.pauseBtn.addEventListener("click", pauseGame);
 ui.restartBtn.addEventListener("click", startGame);
+ui.exitBtn.addEventListener("click", exitGame);
 ui.overlayRestartBtn.addEventListener("click", () => beginPlaying());
 ui.overlayHomeBtn.addEventListener("click", goMainMenu);
 ui.shopBtn.addEventListener("click", () => {
