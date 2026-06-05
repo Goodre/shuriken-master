@@ -166,6 +166,12 @@ body[data-outer="mobile"][data-loading="done"] .shop::after {
   display: none;
 }
 
+body[data-shop="open"] .hud,
+body[data-shop="open"] .toolrow {
+  opacity: 0;
+  pointer-events: none;
+}
+
 @keyframes mobileOuterRays {
   from {
     transform: rotate(-1.2deg) translate3d(-2px, -1px, 0);

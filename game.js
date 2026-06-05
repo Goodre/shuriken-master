@@ -877,6 +877,7 @@ function dropCoins(x, y, amount) {
 
 function render() {
   const mobileOuter = usesMobileOuterBackground();
+  const shopOpen = ui.shop.classList.contains("is-visible");
   if (mobileOuter) renderOuterBackground();
   else clearBackgroundCanvas();
 
@@ -886,6 +887,11 @@ function render() {
   ctx.save();
   if (shake > 0) {
     ctx.translate(rand(-shake, shake) * 0.35, rand(-shake, shake) * 0.35);
+  }
+
+  if (shopOpen) {
+    ctx.restore();
+    return;
   }
 
   const isMenuLike = game.mode === "menu" || (game.mode === "paused" && game.shopPaused);
@@ -965,7 +971,7 @@ function renderOuterBackground() {
     if (isMenuLike) drawMenuTitleOuter(1);
   }
 
-  if (game.mode === "paused") drawPauseShade();
+  if (game.mode === "paused") drawOuterPauseShade();
   ctx = previousCtx;
   W = previousW;
   H = previousH;
@@ -1392,6 +1398,14 @@ function drawPauseShade() {
   ctx.save();
   ctx.fillStyle = "rgba(5, 9, 14, 0.58)";
   ctx.fillRect(0, 0, W, H);
+  ctx.restore();
+}
+
+function drawOuterPauseShade() {
+  ctx.save();
+  ctx.setTransform(renderDpr, 0, 0, renderDpr, 0, 0);
+  ctx.fillStyle = "rgba(5, 9, 14, 0.58)";
+  ctx.fillRect(0, 0, screenW, screenH);
   ctx.restore();
 }
 
