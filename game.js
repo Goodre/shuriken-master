@@ -26,10 +26,12 @@ const ui = {
   overlayRestartBtn: document.getElementById("overlayRestartBtn"),
   overlayHomeBtn: document.getElementById("overlayHomeBtn"),
   skinGrid: document.getElementById("skinGrid"),
+  loading: document.getElementById("loadingScreen"),
 };
 
 const imageNames = [
   "Back.png",
+  "Loading Logo.png",
   "main.png",
   "In-game.png",
   "Main_asset (1).png",
@@ -107,15 +109,14 @@ const imageNames = [
 
 const skinData = [
   { id: "classic", name: "Classic", src: "Asset 141.png", price: 0, variants: ["Asset 141.png"] },
-  { id: "blade-1", name: "Silver", src: "21 09 2019/1.png", price: 190, variants: ["21 09 2019/1.png", "21 09 2019/1.1.png", "21 09 2019/1.2.png"] },
+  { id: "blade-9", name: "Night", src: "21 09 2019/9.png", price: 190, variants: ["21 09 2019/9.png", "21 09 2019/9.1.png", "21 09 2019/9.2.png"] },
   { id: "blade-2", name: "Cross", src: "21 09 2019/2.png", price: 220, variants: ["21 09 2019/2.png", "21 09 2019/2.1.png", "21 09 2019/2.2.png", "21 09 2019/2.3.png"] },
   { id: "blade-3", name: "Three", src: "21 09 2019/3.png", price: 260, variants: ["21 09 2019/3.png", "21 09 2019/3.1.png", "21 09 2019/3.3.png"] },
-  { id: "blade-4", name: "Sharp", src: "21 09 2019/4.png", price: 320, variants: ["21 09 2019/4.png", "21 09 2019/4.1.png", "21 09 2019/4.2.png"] },
-  { id: "blade-5", name: "Fang", src: "21 09 2019/5.png", price: 390, variants: ["21 09 2019/5.png", "21 09 2019/5.1.png", "21 09 2019/5.2.png"] },
+  { id: "blade-7", name: "Violet", src: "21 09 2019/7.png", price: 320, variants: ["21 09 2019/7.png", "21 09 2019/7.1.png", "21 09 2019/7.2.png"] },
   { id: "blade-6", name: "Dark", src: "21 09 2019/6.png", price: 460, variants: ["21 09 2019/6.png", "21 09 2019/6.1.png", "21 09 2019/6.2.png"] },
-  { id: "blade-7", name: "Violet", src: "21 09 2019/7.png", price: 560, variants: ["21 09 2019/7.png", "21 09 2019/7.1.png", "21 09 2019/7.2.png"] },
+  { id: "blade-1", name: "Silver", src: "21 09 2019/1.png", price: 560, variants: ["21 09 2019/1.png", "21 09 2019/1.1.png", "21 09 2019/1.2.png"] },
   { id: "blade-8", name: "Storm", src: "21 09 2019/8.png", price: 680, variants: ["21 09 2019/8.png", "21 09 2019/8.1.png", "21 09 2019/8.2.png"] },
-  { id: "blade-9", name: "Night", src: "21 09 2019/9.png", price: 820, variants: ["21 09 2019/9.png", "21 09 2019/9.1.png", "21 09 2019/9.2.png"] },
+  { id: "blade-4", name: "Sharp", src: "21 09 2019/4.png", price: 820, variants: ["21 09 2019/4.png", "21 09 2019/4.1.png", "21 09 2019/4.2.png", "21 09 2019/5.png", "21 09 2019/5.1.png", "21 09 2019/5.2.png"] },
 ];
 
 const audio = {
@@ -132,8 +133,16 @@ Object.values(audio).forEach((sound) => {
 
 const images = {};
 const SHURIKEN_SIZE = 68;
-let W = 0;
-let H = 0;
+const BASE_W = 360;
+const BASE_H = 640;
+let W = BASE_W;
+let H = BASE_H;
+let viewW = BASE_W;
+let viewH = BASE_H;
+let renderScale = 1;
+let renderOffsetX = 0;
+let renderOffsetY = 0;
+let renderDpr = 1;
 let lastTime = performance.now();
 let pendingNextWave = 0;
 let shake = 0;
@@ -155,12 +164,16 @@ let game = makeGame("menu");
 function loadSave() {
   try {
     const raw = { ...defaults, ...JSON.parse(localStorage.getItem("shurikenMasterWeb") || "{}") };
+    if (raw.selectedSkin === "blade-5") raw.selectedSkin = "blade-4";
+    if (raw.shopFocus === "blade-5") raw.shopFocus = "blade-4";
     if (Array.isArray(raw.ownedSkins) && raw.ownedSkins.some((item) => typeof item === "number")) {
       raw.ownedSkins = ["classic"];
       raw.selectedSkin = "classic";
       raw.selectedSkinSrc = "Asset 141.png";
     }
     if (!Array.isArray(raw.ownedSkins) || !raw.ownedSkins.length) raw.ownedSkins = ["classic"];
+    if (raw.ownedSkins.includes("blade-5") && !raw.ownedSkins.includes("blade-4")) raw.ownedSkins.push("blade-4");
+    raw.ownedSkins = raw.ownedSkins.filter((item) => item !== "blade-5");
     if (!skinData.some((item) => item.id === raw.selectedSkin)) raw.selectedSkin = "classic";
     const selected = skinData.find((item) => item.id === raw.selectedSkin) || skinData[0];
     if (!selected.variants.includes(raw.selectedSkinSrc)) raw.selectedSkinSrc = selected.src;
@@ -244,12 +257,43 @@ function loadImages() {
 }
 
 function resize() {
-  W = Math.max(320, canvas.clientWidth);
-  H = Math.max(420, canvas.clientHeight);
-  const dpr = Math.min(window.devicePixelRatio || 1, 2);
-  canvas.width = Math.floor(W * dpr);
-  canvas.height = Math.floor(H * dpr);
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  viewW = Math.max(1, canvas.clientWidth);
+  viewH = Math.max(1, canvas.clientHeight);
+  renderDpr = Math.min(window.devicePixelRatio || 1, 2);
+  W = BASE_W;
+  H = BASE_H;
+  renderScale = Math.min(viewW / W, viewH / H);
+  renderOffsetX = (viewW - W * renderScale) / 2;
+  renderOffsetY = (viewH - H * renderScale) / 2;
+  canvas.width = Math.floor(viewW * renderDpr);
+  canvas.height = Math.floor(viewH * renderDpr);
+  applyGameTransform();
+}
+
+function applyGameTransform() {
+  ctx.setTransform(
+    renderDpr * renderScale,
+    0,
+    0,
+    renderDpr * renderScale,
+    renderDpr * renderOffsetX,
+    renderDpr * renderOffsetY,
+  );
+}
+
+function clearCanvas() {
+  ctx.save();
+  ctx.setTransform(renderDpr, 0, 0, renderDpr, 0, 0);
+  ctx.clearRect(0, 0, viewW, viewH);
+  ctx.restore();
+}
+
+function clientToGame(clientX, clientY) {
+  const rect = canvas.getBoundingClientRect();
+  return {
+    x: (clientX - rect.left - renderOffsetX) / renderScale,
+    y: (clientY - rect.top - renderOffsetY) / renderScale,
+  };
 }
 
 function rand(min, max) {
@@ -266,6 +310,12 @@ function clamp(value, min, max) {
 
 function dist(a, b) {
   return Math.hypot(a.x - b.x, a.y - b.y);
+}
+
+function ageTrail(points, dt, maxAge, maxPoints = 120) {
+  for (const point of points) point.age = (point.age || 0) + dt;
+  while (points.length && points[points.length - 1].age > maxAge) points.pop();
+  points.length = Math.min(points.length, maxPoints);
 }
 
 function play(name) {
@@ -365,11 +415,6 @@ function makeMeteor(kind, delay) {
   const speedBump = Math.min(game.wave * 0.018 + game.score * 0.006, 0.38);
   const baseDuration = kind === "dark" ? rand(1.72, 2.06) : kind === "snow" ? rand(1.95, 2.34) : rand(2.24, 2.75);
   const actualDuration = Math.max(1.48, baseDuration - speedBump);
-  const centerY = rand(H * 0.28, H * 0.64);
-  const curvePower = kind === "dark" ? 176 : kind === "snow" ? 136 : biome.curve;
-  const curve = rand(-curvePower, curvePower);
-  const startY = centerY + rand(-90, 80);
-  const endY = centerY + rand(-85, 95);
   const kindMap = {
     normal: { img: "Gray_met.png", reward: 1, dropChance: 0.34, hp: 1, size: 70, required: true },
     gray: { img: "Gray_met.png", reward: 1, dropChance: 0.34, hp: 1, size: 70, required: true },
@@ -378,7 +423,9 @@ function makeMeteor(kind, delay) {
     gold: { img: "Orange_Met.png", reward: 5, dropChance: 1, hp: 1, size: 54, hitScale: 0.22, speedMul: 0.76, required: false },
     danger: { img: "Purple_X_Met.png", reward: 0, dropChance: 0, hp: 1, size: 73, required: false },
   };
-  const data = kindMap[kind];
+  const data = kindMap[kind] || kindMap.gray;
+  const curvePower = kind === "dark" ? 152 : kind === "snow" ? 126 : biome.curve;
+  const path = makeMeteorPath(curvePower, data.size);
 
   return {
     ...data,
@@ -387,13 +434,13 @@ function makeMeteor(kind, delay) {
     active: false,
     t: 0,
     x: left ? -90 : W + 90,
-    y: startY,
+    y: path.startY,
     startX: left ? -90 : W + 90,
     endX: left ? W + 90 : -90,
-    startY,
-    endY,
-    centerY,
-    curve,
+    startY: path.startY,
+    endY: path.endY,
+    centerY: path.centerY,
+    curve: path.curve,
     duration: actualDuration * (data.speedMul || biome.speed || 1),
     speedRatio: clamp((2.75 - actualDuration) / 1.3, 0, 1),
     rotation: rand(0, Math.PI * 2),
@@ -404,12 +451,45 @@ function makeMeteor(kind, delay) {
   };
 }
 
+function makeMeteorPath(curvePower, size) {
+  const safeTop = 58 + size * 0.12;
+  const safeBottom = Math.min(H * 0.7, launcherY() - SHURIKEN_SIZE * 1.25);
+
+  for (let attempt = 0; attempt < 24; attempt += 1) {
+    const centerY = rand(H * 0.25, H * 0.52);
+    const curve = rand(-curvePower, curvePower);
+    const startY = clamp(centerY + rand(-66, 64), safeTop, H * 0.62);
+    const endY = clamp(centerY + rand(-66, 72), safeTop, H * 0.62);
+    if (isMeteorPathSafe(startY, endY, curve, safeTop, safeBottom)) {
+      return { centerY, curve, startY, endY };
+    }
+  }
+
+  const centerY = rand(H * 0.28, H * 0.46);
+  const curve = rand(-curvePower * 0.45, curvePower * 0.45);
+  return {
+    centerY,
+    curve,
+    startY: clamp(centerY + rand(-44, 44), safeTop, safeBottom),
+    endY: clamp(centerY + rand(-44, 44), safeTop, safeBottom),
+  };
+}
+
+function isMeteorPathSafe(startY, endY, curve, safeTop, safeBottom) {
+  for (let i = 0; i <= 12; i += 1) {
+    const t = i / 12;
+    const y = startY + (endY - startY) * t + Math.sin(t * Math.PI) * curve;
+    if (y < safeTop || y > safeBottom) return false;
+  }
+  return true;
+}
+
 function spawnWave() {
   pendingNextWave = 0;
   const biome = biomeForScore();
-  const requiredCount = clamp(1 + Math.floor(game.score / 18), 1, 3);
+  const requiredCount = clamp(1 + Math.floor(game.score / 24), 1, 2);
   const list = [];
-  const requiredSpacing = biome.id === "dark" ? 1.08 : biome.id === "snow" ? 1 : 0.92;
+  const requiredSpacing = biome.id === "dark" ? 1.22 : biome.id === "snow" ? 1.18 : 1.12;
   const occupiedDelays = [];
 
   for (let i = 0; i < requiredCount; i += 1) {
@@ -439,15 +519,15 @@ function spawnWave() {
 function findBonusDelay(occupiedDelays, requiredSpacing) {
   const last = occupiedDelays.length ? Math.max(...occupiedDelays) : 0;
   const candidates = [
-    last + rand(0.58, 0.82),
-    last + rand(0.96, 1.28),
-    Math.max(0.35, last - rand(0.7, 0.92)),
+    last + rand(0.92, 1.2),
+    last + rand(1.28, 1.62),
+    last + rand(1.72, 2.05),
   ];
   for (const candidate of candidates) {
-    const tooClose = occupiedDelays.some((delay) => Math.abs(delay - candidate) < requiredSpacing * 0.62);
+    const tooClose = occupiedDelays.some((delay) => Math.abs(delay - candidate) < requiredSpacing * 0.82);
     if (!tooClose) return candidate;
   }
-  return last + 1.05;
+  return last + requiredSpacing * 1.08;
 }
 
 function startGame() {
@@ -582,8 +662,8 @@ function updateShurikens(dt) {
   for (const shuriken of game.shurikens) {
     shuriken.y += shuriken.vy * dt;
     shuriken.rotation += shuriken.spin * dt;
-    shuriken.trail.unshift({ x: shuriken.x, y: shuriken.y });
-    shuriken.trail.length = Math.min(shuriken.trail.length, 10);
+    ageTrail(shuriken.trail, dt, 0.12, 12);
+    shuriken.trail.unshift({ x: shuriken.x, y: shuriken.y, age: 0 });
   }
   game.shurikens = game.shurikens.filter((item) => item.y > -90 && !item.remove);
 }
@@ -602,8 +682,8 @@ function updateMeteors(dt) {
     meteor.y = meteor.startY + (meteor.endY - meteor.startY) * t + Math.sin(t * Math.PI) * meteor.curve;
     meteor.rotation += meteor.spin * dt;
     meteor.hitFlash = Math.max(0, meteor.hitFlash - dt * 5);
-    meteor.trail.unshift({ x: meteor.x, y: meteor.y });
-    meteor.trail.length = Math.min(meteor.trail.length, 95);
+    ageTrail(meteor.trail, dt, meteorTrailMaxAge(meteor), 96);
+    meteor.trail.unshift({ x: meteor.x, y: meteor.y, age: 0 });
 
     if (meteor.t >= 1) {
       meteor.remove = true;
@@ -613,6 +693,10 @@ function updateMeteors(dt) {
     }
   }
   game.meteors = game.meteors.filter((item) => !item.remove);
+}
+
+function meteorTrailMaxAge(meteor) {
+  return 0.62 + meteor.speedRatio * 0.16 + (meteor.kind === "dark" ? 0.05 : 0);
 }
 
 function updateSparks(dt) {
@@ -737,6 +821,8 @@ function dropCoins(x, y, amount) {
 }
 
 function render() {
+  clearCanvas();
+  applyGameTransform();
   ctx.save();
   if (shake > 0) {
     ctx.translate(rand(-shake, shake) * 0.35, rand(-shake, shake) * 0.35);
@@ -1377,8 +1463,8 @@ canvas.addEventListener("pointerdown", (event) => {
   event.preventDefault();
   if (ui.shop.classList.contains("is-visible")) return;
   if (game.mode === "menu") {
-    const rect = canvas.getBoundingClientRect();
-    if (isInsideMenuHero(event.clientX - rect.left, event.clientY - rect.top)) startTransition();
+    const point = clientToGame(event.clientX, event.clientY);
+    if (isInsideMenuHero(point.x, point.y)) startTransition();
     return;
   }
   handleLaunchInput();
@@ -1414,10 +1500,14 @@ ui.shopPrice.addEventListener("click", activateFocusedSkin);
 
 window.addEventListener("resize", resize);
 
-loadImages().then(() => {
+const loadingHold = new Promise((resolve) => window.setTimeout(resolve, 1050));
+
+Promise.all([loadImages(), loadingHold]).then(() => {
   resize();
   document.body.dataset.mode = game.mode;
   document.body.dataset.shop = "closed";
+  document.body.dataset.loading = "done";
+  if (ui.loading) window.setTimeout(() => ui.loading.remove(), 520);
   hideOverlay();
   updateHud();
   requestAnimationFrame(loop);

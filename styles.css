@@ -22,9 +22,75 @@ body {
   height: 100%;
   margin: 0;
   overflow: hidden;
-  background: #111926;
+  background-color: #111926;
+  background-image: url("assets/Main_asset (1).png");
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
   color: var(--ink);
   font-family: "ShurikenBlock", Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+body[data-mode="menu"] {
+  background-image: url("assets/main.png");
+}
+
+body[data-shop="open"] {
+  background-image: url("assets/Market_asset (1).png");
+  background-position: center;
+  background-size: 130% auto;
+}
+
+body[data-mode="gameover"] {
+  background-color: #6e7774;
+  background-image: none;
+}
+
+body[data-loading="loading"] {
+  background-color: #435a57;
+  background-image:
+    radial-gradient(circle at 50% 52%, rgba(139, 221, 105, 0.18), rgba(35, 52, 60, 0) 34%),
+    linear-gradient(180deg, #26384b 0%, #435a57 54%, #758371 100%);
+  background-position: center;
+  background-size: cover;
+}
+
+.loading-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  background:
+    radial-gradient(circle at 50% 52%, rgba(139, 221, 105, 0.18), rgba(35, 52, 60, 0) 34%),
+    linear-gradient(180deg, #26384b 0%, #435a57 54%, #758371 100%);
+  opacity: 1;
+  pointer-events: auto;
+  transition: opacity 0.42s ease, visibility 0.42s ease;
+}
+
+.loading-screen img {
+  width: min(108vw, calc(108vh * 9 / 16));
+  max-width: none;
+  height: auto;
+  filter: drop-shadow(0 10px 16px rgba(0, 0, 0, 0.28));
+  animation: loadingLogoPulse 1.35s ease-in-out infinite alternate;
+}
+
+body[data-loading="done"] .loading-screen {
+  visibility: hidden;
+  opacity: 0;
+  pointer-events: none;
+}
+
+@keyframes loadingLogoPulse {
+  from {
+    transform: scale(0.985);
+  }
+
+  to {
+    transform: scale(1.025);
+  }
 }
 
 button {
@@ -238,7 +304,7 @@ body[data-mode="transition"] #shopBtn {
 }
 
 .market-back#closeShopBtn {
-  background: url("assets/Ресурс 28.png") center / contain no-repeat;
+  background: url("assets/Ресурс 28.png") left center / contain no-repeat;
 }
 
 .icon-btn:hover,
@@ -528,7 +594,7 @@ body[data-mode="transition"] #shopBtn {
   flex-direction: column;
   overflow: hidden;
   padding: max(28px, env(safe-area-inset-top)) clamp(18px, 6cqw, 30px) max(22px, env(safe-area-inset-bottom));
-  background: #253f48 url("assets/Market_asset (1).png") center / cover no-repeat;
+  background: #253f48 url("assets/Market_asset (1).png") center / 118% auto no-repeat;
   isolation: isolate;
   opacity: 0;
   pointer-events: none;
@@ -568,12 +634,12 @@ body[data-mode="transition"] #shopBtn {
 
 .market-back {
   position: absolute;
-  left: max(0px, env(safe-area-inset-left));
+  left: max(-4px, calc(env(safe-area-inset-left) - 4px));
   top: max(28px, env(safe-area-inset-top));
   z-index: 2;
-  width: clamp(92px, 24cqw, 110px);
-  height: clamp(62px, 16cqw, 76px);
-  background: url("assets/Ресурс 28.png") center / contain no-repeat;
+  width: clamp(100px, 26cqw, 118px);
+  height: clamp(68px, 17cqw, 82px);
+  background: url("assets/Ресурс 28.png") left center / contain no-repeat;
   transform: translateX(-140px);
   transition: transform 0.78s cubic-bezier(0.18, 0.78, 0.18, 1) 0.12s;
 }

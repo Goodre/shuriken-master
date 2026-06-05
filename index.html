@@ -4,9 +4,9 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <title>Shuriken Master Web</title>
-    <link rel="stylesheet" href="styles.css?v=20260604-ui16">
+    <link rel="stylesheet" href="styles.css?v=20260604-ui22">
   </head>
-  <body data-mode="menu" data-shop="closed">
+  <body data-mode="menu" data-shop="closed" data-loading="loading">
     <main class="game-shell">
       <canvas id="game" aria-label="Shuriken Master game canvas"></canvas>
 
@@ -75,6 +75,10 @@
       </section>
     </main>
 
-    <script src="game.js?v=20260604-ui16"></script>
+    <div id="loadingScreen" class="loading-screen" aria-label="Завантаження">
+      <img src="assets/Loading Logo.png" alt="Shuriken Master">
+    </div>
+
+    <script src="game.js?v=20260604-ui22"></script>
   </body>
 </html>
