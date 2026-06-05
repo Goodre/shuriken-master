@@ -199,6 +199,29 @@ body[data-shop="open"] .toolrow {
   background: transparent;
 }
 
+.pause-shade {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  background: rgba(5, 9, 14, 0.58);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.22s ease;
+}
+
+body[data-mode="paused"] .pause-shade {
+  opacity: 1;
+}
+
+body[data-outer="mobile"] .pause-shade {
+  top: calc(-1 * var(--mobile-vpad));
+  left: 0;
+  width: 100vw;
+  height: 100dvh;
+  right: auto;
+  bottom: auto;
+}
+
 .hud {
   position: absolute;
   top: max(19px, env(safe-area-inset-top));

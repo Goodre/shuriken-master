@@ -119,7 +119,7 @@ const skinData = [
   { id: "blade-6", name: "Dark", src: "21 09 2019/6.png", price: 460, variants: ["21 09 2019/6.png", "21 09 2019/6.1.png", "21 09 2019/6.2.png"] },
   { id: "blade-1", name: "Silver", src: "21 09 2019/1.png", price: 560, variants: ["21 09 2019/1.png", "21 09 2019/1.1.png", "21 09 2019/1.2.png"] },
   { id: "blade-8", name: "Storm", src: "21 09 2019/8.png", price: 680, variants: ["21 09 2019/8.png", "21 09 2019/8.1.png", "21 09 2019/8.2.png"] },
-  { id: "blade-4", name: "Sharp", src: "21 09 2019/4.png", price: 820, variants: ["21 09 2019/4.png", "21 09 2019/4.1.png", "21 09 2019/4.2.png", "21 09 2019/5.png", "21 09 2019/5.1.png", "21 09 2019/5.2.png"] },
+  { id: "blade-4", name: "Sharp", src: "21 09 2019/5.2.png", price: 820, variants: ["21 09 2019/4.png", "21 09 2019/4.1.png", "21 09 2019/4.2.png", "21 09 2019/5.png", "21 09 2019/5.1.png", "21 09 2019/5.2.png"] },
 ];
 
 const audio = {
@@ -545,44 +545,58 @@ function spawnWave() {
   const requiredCount = clamp(1 + Math.floor(game.score / 24), 1, 2);
   const list = [];
   const requiredSpacing = biome.id === "dark" ? 1.22 : biome.id === "snow" ? 1.18 : 1.12;
-  const occupiedDelays = [];
+  const requiredMeteors = [];
+  const optionalDelays = [];
 
   for (let i = 0; i < requiredCount; i += 1) {
     const kind = meteorKind();
     const delay = i * requiredSpacing + rand(0, 0.14);
-    occupiedDelays.push(delay);
-    list.push(makeMeteor(kind, delay));
+    const meteor = makeMeteor(kind, delay);
+    requiredMeteors.push(meteor);
+    list.push(meteor);
   }
 
+  const optionalStart = requiredMeteors.reduce((clearAt, meteor) => {
+    return Math.max(clearAt, meteor.delay + meteor.duration * meteorCenterlineTime() + 0.18);
+  }, 0);
+
   if (game.score >= 6 && Math.random() < 0.28 + Math.min(game.score * 0.004, 0.18)) {
-    const delay = findBonusDelay(occupiedDelays, requiredSpacing);
+    const delay = findBonusDelay(optionalDelays, requiredSpacing, optionalStart);
     if (delay !== null) {
-      occupiedDelays.push(delay);
+      optionalDelays.push(delay);
       list.push(makeMeteor("gold", delay));
     }
   }
 
   if (game.score >= 4 && Math.random() < 0.42) {
-    const delay = findBonusDelay(occupiedDelays, requiredSpacing);
-    if (delay !== null) list.push(makeMeteor("danger", delay));
+    const delay = findBonusDelay(optionalDelays, requiredSpacing, optionalStart);
+    if (delay !== null) {
+      optionalDelays.push(delay);
+      list.push(makeMeteor("danger", delay));
+    }
   }
 
   game.meteors.push(...list.sort((a, b) => a.delay - b.delay));
   game.message = `${biome.name} ${game.wave}`;
 }
 
-function findBonusDelay(occupiedDelays, requiredSpacing) {
+function findBonusDelay(occupiedDelays, requiredSpacing, earliest = 0) {
   const last = occupiedDelays.length ? Math.max(...occupiedDelays) : 0;
+  const base = Math.max(last, earliest);
   const candidates = [
-    last + rand(0.92, 1.2),
-    last + rand(1.28, 1.62),
-    last + rand(1.72, 2.05),
+    base + rand(0.2, 0.36),
+    base + rand(0.62, 0.88),
+    base + rand(1.08, 1.34),
   ];
   for (const candidate of candidates) {
     const tooClose = occupiedDelays.some((delay) => Math.abs(delay - candidate) < requiredSpacing * 0.82);
     if (!tooClose) return candidate;
   }
-  return last + requiredSpacing * 1.08;
+  return base + requiredSpacing * 1.08;
+}
+
+function meteorCenterlineTime() {
+  return 0.5;
 }
 
 function startGame() {
@@ -719,6 +733,11 @@ function updateShurikens(dt) {
     shuriken.rotation += shuriken.spin * dt;
     ageTrail(shuriken.trail, dt, 0.12, 12);
     shuriken.trail.unshift({ x: shuriken.x, y: shuriken.y, age: 0 });
+    if (shuriken.y <= -90 && !shuriken.spent && !shuriken.remove) {
+      shuriken.remove = true;
+      endGame("Промах", "Сюрікен пролетів повз метеор.", "miss");
+      return;
+    }
   }
   game.shurikens = game.shurikens.filter((item) => item.y > -90 && !item.remove);
 }
@@ -763,7 +782,7 @@ function updateSparks(dt) {
     spark.vy *= 0.992;
     spark.rotation += spark.spin * dt;
     spark.trail.unshift({ x: spark.x, y: spark.y });
-    spark.trail.length = Math.min(spark.trail.length, 9);
+    spark.trail.length = Math.min(spark.trail.length, 14);
     spark.life -= dt;
   }
   game.sparks = game.sparks.filter((item) => item.life > 0);
@@ -824,6 +843,8 @@ function checkCollisions() {
 function checkWaveClear(dt) {
   const hasRequired = game.meteors.some((item) => item.required && !item.remove);
   if (hasRequired || game.mode !== "playing") return;
+  const hasBlockingOptional = game.meteors.some((item) => !item.required && !item.remove && !hasCrossedCenterline(item));
+  if (hasBlockingOptional) return;
 
   if (!pendingNextWave) {
     pendingNextWave = 0.78;
@@ -835,8 +856,13 @@ function checkWaveClear(dt) {
   if (pendingNextWave <= 0) spawnWave();
 }
 
+function hasCrossedCenterline(meteor) {
+  return meteor.active && meteor.t >= meteorCenterlineTime() + 0.04;
+}
+
 function burst(x, y, kind, count) {
   const pieces = Math.max(9, Math.floor(count * 0.55));
+  const palette = burstPalette(kind);
   for (let i = 0; i < pieces; i += 1) {
     const a = rand(0, Math.PI * 2);
     const speed = rand(90, 310);
@@ -845,9 +871,9 @@ function burst(x, y, kind, count) {
       y,
       vx: Math.cos(a) * speed,
       vy: Math.sin(a) * speed,
-      size: rand(10, 26),
-      color: kind === "danger" ? "#3f344c" : kind === "gold" ? "#5b5140" : "#303234",
-      edgeColor: kind === "gold" ? "#d5b63b" : kind === "danger" ? "#9c72e5" : "#777d7f",
+      size: rand(12, 30),
+      color: palette.fill,
+      edgeColor: palette.trail,
       points: rand(3, 6) | 0,
       trail: [{ x, y }],
       rotation: rand(0, Math.PI * 2),
@@ -856,6 +882,14 @@ function burst(x, y, kind, count) {
       maxLife: 1.05,
     });
   }
+}
+
+function burstPalette(kind) {
+  if (kind === "danger") return { fill: "#443452", trail: "#a478ef" };
+  if (kind === "gold") return { fill: "#6a5730", trail: "#e2c33e" };
+  if (kind === "snow") return { fill: "#b9c7cd", trail: "#effaff" };
+  if (kind === "dark") return { fill: "#27242f", trail: "#7a657f" };
+  return { fill: "#343536", trail: "#838984" };
 }
 
 function dropCoins(x, y, amount) {
@@ -921,7 +955,6 @@ function render() {
     drawLauncher();
     drawPickups();
     drawSparks();
-    if (game.mode === "paused") drawPauseShade();
     if (!mobileOuter && game.mode === "gameover") drawDeadMenu();
   } else if (!mobileOuter) {
     drawDeadMenu();
@@ -971,7 +1004,6 @@ function renderOuterBackground() {
     if (isMenuLike) drawMenuTitleOuter(1);
   }
 
-  if (game.mode === "paused") drawOuterPauseShade();
   ctx = previousCtx;
   W = previousW;
   H = previousH;
@@ -1178,7 +1210,7 @@ function drawMeteorTail(meteor) {
   const py = dx;
   const pulse = 0.5 + 0.5 * Math.sin(performance.now() * 0.006 + meteor.trailSeed);
   const visible = Math.min(meteor.trail.length, 68 + Math.round(meteor.speedRatio * 24));
-  const baseWidth = meteor.size * (0.4 + meteor.speedRatio * 0.025 + pulse * 0.015);
+  const baseWidth = meteor.size * (0.36 + meteor.speedRatio * 0.022 + pulse * 0.014);
   const startBehind = meteor.size * 0.16;
   const firstLen = Math.max(1, Math.hypot(firstTail.x - head.x, firstTail.y - head.y));
   const anchor = {
@@ -1307,15 +1339,56 @@ function drawSmokeCloud(x, y, size, alpha, color, seed) {
 }
 
 function drawWarning(meteor) {
-  const incoming = 1 - clamp(meteor.delay / 1.2, 0, 1);
+  const warningLead = 0.64;
+  if (meteor.delay > warningLead) return;
+  const incoming = 1 - clamp(meteor.delay / warningLead, 0, 1);
+  const side = meteor.startX < 0 ? 1 : -1;
   const x = meteor.startX < 0 ? 18 : W - 18;
   const y = clamp(meteor.startY, 90, H - 160);
+  const pulse = 0.5 + 0.5 * Math.sin(performance.now() * 0.011 + meteor.trailSeed);
+  const alpha = 0.1 + incoming * 0.58;
+
   ctx.save();
-  ctx.globalAlpha = 0.2 + incoming * 0.55;
-  ctx.fillStyle = meteor.kind === "danger" ? "#9d6cff" : "#66e6ff";
+  ctx.translate(x, y);
+  ctx.scale(0.68, 0.68);
+  ctx.scale(side, 1);
+  ctx.lineJoin = "round";
+  ctx.lineCap = "round";
+
+  const glow = ctx.createRadialGradient(0, 0, 2, 0, 0, 34 + pulse * 10);
+  glow.addColorStop(0, `rgba(164, 112, 255, ${0.42 * alpha})`);
+  glow.addColorStop(1, "rgba(164, 112, 255, 0)");
+  ctx.fillStyle = glow;
   ctx.beginPath();
-  ctx.arc(x, y, 8 + incoming * 6, 0, Math.PI * 2);
+  ctx.arc(0, 0, 38, 0, Math.PI * 2);
   ctx.fill();
+
+  ctx.globalAlpha = alpha;
+  ctx.strokeStyle = "rgba(176, 118, 255, 0.92)";
+  ctx.lineWidth = 5;
+  ctx.beginPath();
+  ctx.moveTo(-17, -20);
+  ctx.lineTo(5 + pulse * 4, 0);
+  ctx.lineTo(-17, 20);
+  ctx.stroke();
+
+  ctx.globalAlpha = alpha * 0.5;
+  ctx.lineWidth = 3.5;
+  ctx.beginPath();
+  ctx.moveTo(-31, -14);
+  ctx.lineTo(-15 + pulse * 3, 0);
+  ctx.lineTo(-31, 14);
+  ctx.stroke();
+
+  ctx.globalAlpha = alpha * 0.82;
+  ctx.strokeStyle = "rgba(234, 220, 255, 0.9)";
+  ctx.lineWidth = 3.2;
+  ctx.beginPath();
+  ctx.moveTo(15, -8);
+  ctx.lineTo(27, 8);
+  ctx.moveTo(27, -8);
+  ctx.lineTo(15, 8);
+  ctx.stroke();
   ctx.restore();
 }
 
@@ -1449,9 +1522,9 @@ function drawShardTrail(spark, alpha) {
     const a = spark.trail[i];
     const b = spark.trail[i - 1];
     const fade = (1 - i / spark.trail.length) * alpha;
-    ctx.globalAlpha = fade * 0.55;
+    ctx.globalAlpha = fade * 0.68;
     ctx.strokeStyle = spark.edgeColor;
-    ctx.lineWidth = Math.max(1, spark.size * 0.15 * fade);
+    ctx.lineWidth = Math.max(1.4, spark.size * 0.24 * fade);
     ctx.beginPath();
     ctx.moveTo(a.x, a.y);
     ctx.lineTo(b.x, b.y);
@@ -1630,18 +1703,43 @@ canvas.addEventListener("pointerdown", (event) => {
   event.preventDefault();
   if (ui.shop.classList.contains("is-visible")) return;
   if (game.mode === "menu") {
-    const point = clientToGame(event.clientX, event.clientY);
-    if (isInsideMenuHero(point.x, point.y)) startTransition();
+    startTransition();
+    return;
+  }
+  if (game.mode === "paused") {
+    pauseGame();
+    return;
+  }
+  if (game.mode === "gameover") {
+    beginPlaying();
     return;
   }
   handleLaunchInput();
 });
 
-window.addEventListener("keydown", (event) => {
-  if (event.code !== "Space") return;
+function isSpaceKey(event) {
+  return event.code === "Space" || event.key === " " || event.key === "Spacebar";
+}
+
+document.addEventListener("keydown", (event) => {
+  if (!isSpaceKey(event)) return;
   event.preventDefault();
+  event.stopPropagation();
+  if (ui.shop.classList.contains("is-visible")) return;
+  if (game.mode === "menu") {
+    startTransition();
+    return;
+  }
+  if (game.mode === "paused") {
+    pauseGame();
+    return;
+  }
+  if (game.mode === "gameover") {
+    beginPlaying();
+    return;
+  }
   handleLaunchInput();
-});
+}, true);
 
 ui.primaryBtn.addEventListener("click", () => {
   if (game.mode === "paused") {
