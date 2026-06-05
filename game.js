@@ -1,5 +1,8 @@
+const backgroundCanvas = document.getElementById("background");
 const canvas = document.getElementById("game");
-const ctx = canvas.getContext("2d");
+const gameCtx = canvas.getContext("2d");
+const backgroundCtx = backgroundCanvas.getContext("2d");
+let ctx = gameCtx;
 
 const ui = {
   score: document.getElementById("score"),
@@ -139,10 +142,13 @@ let W = BASE_W;
 let H = BASE_H;
 let viewW = BASE_W;
 let viewH = BASE_H;
+let screenW = BASE_W;
+let screenH = BASE_H;
 let renderScale = 1;
 let renderOffsetX = 0;
 let renderOffsetY = 0;
 let renderDpr = 1;
+let menuBackgroundAnchorY = null;
 let lastTime = performance.now();
 let pendingNextWave = 0;
 let shake = 0;
@@ -259,6 +265,8 @@ function loadImages() {
 function resize() {
   viewW = Math.max(1, canvas.clientWidth);
   viewH = Math.max(1, canvas.clientHeight);
+  screenW = Math.max(1, window.innerWidth || document.documentElement.clientWidth || viewW);
+  screenH = Math.max(1, window.innerHeight || document.documentElement.clientHeight || viewH);
   renderDpr = Math.min(window.devicePixelRatio || 1, 2);
   W = BASE_W;
   H = BASE_H;
@@ -267,6 +275,9 @@ function resize() {
   renderOffsetY = (viewH - H * renderScale) / 2;
   canvas.width = Math.floor(viewW * renderDpr);
   canvas.height = Math.floor(viewH * renderDpr);
+  backgroundCanvas.width = Math.floor(screenW * renderDpr);
+  backgroundCanvas.height = Math.floor(screenH * renderDpr);
+  document.body.dataset.outer = usesMobileOuterBackground() ? "mobile" : "desktop";
   applyGameTransform();
 }
 
@@ -286,6 +297,17 @@ function clearCanvas() {
   ctx.setTransform(renderDpr, 0, 0, renderDpr, 0, 0);
   ctx.clearRect(0, 0, viewW, viewH);
   ctx.restore();
+}
+
+function clearBackgroundCanvas() {
+  backgroundCtx.save();
+  backgroundCtx.setTransform(renderDpr, 0, 0, renderDpr, 0, 0);
+  backgroundCtx.clearRect(0, 0, screenW, screenH);
+  backgroundCtx.restore();
+}
+
+function usesMobileOuterBackground() {
+  return screenW / screenH < BASE_W / BASE_H;
 }
 
 function clientToGame(clientX, clientY) {
@@ -407,6 +429,37 @@ function biomeForScore(score = game.score) {
 
 function meteorKind() {
   return biomeForScore().kind;
+}
+
+function drawImageCoverAnchoredY(img, anchorY, imageAnchorRatioY = 0.5, alpha = 1, scaleBoost = 1) {
+  if (!img || !img.complete || !img.naturalWidth) {
+    drawImageCover(img, alpha, scaleBoost);
+    return;
+  }
+
+  const scale = Math.max(W / img.naturalWidth, H / img.naturalHeight) * scaleBoost;
+  const width = img.naturalWidth * scale;
+  const height = img.naturalHeight * scale;
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.drawImage(img, (W - width) / 2, anchorY - height * imageAnchorRatioY, width, height);
+  ctx.restore();
+}
+
+function drawImageCoverAroundAnchoredY(img, pivotX, pivotY, imageAnchorRatioY = 0.5, alpha = 1, rotation = 0, offsetX = 0, offsetY = 0, scaleBoost = 1) {
+  if (!img || !img.complete || !img.naturalWidth) return;
+  const scale = Math.max(W / img.naturalWidth, H / img.naturalHeight) * scaleBoost;
+  const width = img.naturalWidth * scale;
+  const height = img.naturalHeight * scale;
+  const x = (W - width) / 2;
+  const y = pivotY - height * imageAnchorRatioY;
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.translate(pivotX + offsetX, pivotY + offsetY);
+  ctx.rotate(rotation);
+  ctx.translate(-pivotX, -pivotY);
+  ctx.drawImage(img, x, y, width, height);
+  ctx.restore();
 }
 
 function makeMeteor(kind, delay) {
@@ -821,6 +874,11 @@ function dropCoins(x, y, amount) {
 }
 
 function render() {
+  const mobileOuter = usesMobileOuterBackground();
+  if (mobileOuter) renderOuterBackground();
+  else clearBackgroundCanvas();
+
+  ctx = gameCtx;
   clearCanvas();
   applyGameTransform();
   ctx.save();
@@ -832,34 +890,89 @@ function render() {
   const isTransition = game.mode === "transition";
   const blend = isTransition ? easeInOutCubic(clamp(transition.t, 0, 1)) : 0;
 
-  if (isTransition) {
-    drawMenuBackground(1 - blend);
-    drawGameBackground(blend);
-  } else {
-    if (isMenuLike) drawMenuBackground(1);
-    else drawGameBackground(1);
+  if (!mobileOuter) {
+    if (isTransition) {
+      drawMenuBackground(1 - blend);
+      drawGameBackground(blend);
+    } else {
+      if (isMenuLike) drawMenuBackground(1);
+      else drawGameBackground(1);
+    }
+
+    drawAtmosphere(isTransition ? blend : isMenuLike ? 0 : 1);
+    const vignetteStrength = isTransition ? 1 + (0.12 - 1) * blend : isMenuLike ? 1 : game.mode === "paused" ? 0.28 : 0.12;
+    drawVignette(vignetteStrength);
   }
 
-  drawAtmosphere(isTransition ? blend : isMenuLike ? 0 : 1);
-  const vignetteStrength = isTransition ? 1 + (0.12 - 1) * blend : isMenuLike ? 1 : game.mode === "paused" ? 0.28 : 0.12;
-  drawVignette(vignetteStrength);
   if (isMenuLike || isTransition) {
-    drawMenuTitle(isTransition ? 1 - blend : 1);
+    if (!mobileOuter) drawMenuTitle(isTransition ? 1 - blend : 1);
     drawMenuHero(isTransition ? blend : 0);
-  } else {
+  } else if (game.mode !== "gameover") {
     drawMeteors();
     drawShurikens();
     drawLauncher();
     drawPickups();
     drawSparks();
     if (game.mode === "paused") drawPauseShade();
-    if (game.mode === "gameover") drawDeadMenu();
+    if (!mobileOuter && game.mode === "gameover") drawDeadMenu();
+  } else if (!mobileOuter) {
+    drawDeadMenu();
   }
   ctx.restore();
 }
 
+function renderOuterBackground() {
+  clearBackgroundCanvas();
+  const previousCtx = ctx;
+  const previousW = W;
+  const previousH = H;
+  ctx = backgroundCtx;
+  W = BASE_W;
+  H = screenH / renderScale;
+  ctx.setTransform(renderDpr * renderScale, 0, 0, renderDpr * renderScale, 0, 0);
+
+  const shopOpen = ui.shop.classList.contains("is-visible");
+  const isMenuLike = game.mode === "menu" || (game.mode === "paused" && game.shopPaused);
+  const isTransition = game.mode === "transition";
+  const blend = isTransition ? easeInOutCubic(clamp(transition.t, 0, 1)) : 0;
+
+  if (shopOpen) {
+    drawMarketBackground(1);
+    drawAtmosphere(0.25);
+    drawVignette(0.32);
+  } else if (game.mode === "gameover") {
+    drawDeadMenu();
+  } else if (isTransition) {
+    menuBackgroundAnchorY = (H - BASE_H) / 2 + BASE_H * 0.49;
+    drawMenuBackground(1 - blend);
+    menuBackgroundAnchorY = null;
+    drawGameBackground(blend);
+    drawAtmosphere(blend);
+    drawVignette(1 + (0.12 - 1) * blend);
+    drawMenuTitleOuter(1 - blend);
+  } else {
+    if (isMenuLike) {
+      menuBackgroundAnchorY = (H - BASE_H) / 2 + BASE_H * 0.49;
+      drawMenuBackground(1);
+      menuBackgroundAnchorY = null;
+    } else {
+      drawGameBackground(1);
+    }
+    drawAtmosphere(isMenuLike ? 0 : 1);
+    drawVignette(isMenuLike ? 1 : game.mode === "paused" ? 0.28 : 0.12);
+    if (isMenuLike) drawMenuTitleOuter(1);
+  }
+
+  if (game.mode === "paused") drawPauseShade();
+  ctx = previousCtx;
+  W = previousW;
+  H = previousH;
+}
+
 function drawMenuBackground(alpha) {
-  drawImageCover(images["main.png"] || images["Back.png"], alpha, 1.2);
+  const img = images["main.png"] || images["Back.png"];
+  if (menuBackgroundAnchorY === null) drawImageCover(img, alpha, 1.2);
+  else drawImageCoverAnchoredY(img, menuBackgroundAnchorY, 0.5, alpha, 1.2);
   drawMenuEffects(alpha);
 }
 
@@ -867,16 +980,22 @@ function drawMenuEffects(alpha) {
   if (alpha <= 0.01) return;
   const time = performance.now() * 0.001;
   const pivotX = W / 2;
-  const pivotY = H * 0.49;
+  const pivotY = menuBackgroundAnchorY === null ? H * 0.49 : menuBackgroundAnchorY;
   const rayA = Math.sin(time * Math.PI * 0.32) * 0.075;
   const rayB = Math.sin(time * Math.PI * 0.27 + Math.PI * 0.65) * -0.058;
   const dotX = Math.sin(time * Math.PI * 0.18) * 10;
   const dotY = Math.cos(time * Math.PI * 0.15) * 12;
 
   ctx.save();
-  drawImageCoverAround(images["Sun_Rays.png"], pivotX, pivotY, alpha * 0.95, rayA, 0, 0, 1.15);
-  drawImageCoverAround(images["sun_rays2.png"], pivotX, pivotY, alpha * 0.82, rayB, 0, 0, 1.15);
-  drawImageCoverAround(images["Dots_main.png"], pivotX, pivotY, alpha * 0.42, 0, dotX, dotY, 1.08);
+  if (menuBackgroundAnchorY === null) {
+    drawImageCoverAround(images["Sun_Rays.png"], pivotX, pivotY, alpha * 0.95, rayA, 0, 0, 1.15);
+    drawImageCoverAround(images["sun_rays2.png"], pivotX, pivotY, alpha * 0.82, rayB, 0, 0, 1.15);
+    drawImageCoverAround(images["Dots_main.png"], pivotX, pivotY, alpha * 0.42, 0, dotX, dotY, 1.08);
+  } else {
+    drawImageCoverAroundAnchoredY(images["Sun_Rays.png"], pivotX, pivotY, 0.5, alpha * 0.95, rayA, 0, 0, 1.15);
+    drawImageCoverAroundAnchoredY(images["sun_rays2.png"], pivotX, pivotY, 0.5, alpha * 0.82, rayB, 0, 0, 1.15);
+    drawImageCoverAroundAnchoredY(images["Dots_main.png"], pivotX, pivotY, 0.5, alpha * 0.42, 0, dotX, dotY, 1.08);
+  }
   ctx.restore();
 }
 
@@ -885,6 +1004,22 @@ function drawGameBackground(alpha) {
   drawImageCover(images["Main_asset (1).png"] || images["In-game.png"], alpha, 1.06);
   drawGameEffects(alpha);
   drawGameBackgroundDim(alpha);
+}
+
+function drawMarketBackground(alpha) {
+  if (alpha <= 0.01) return;
+  drawImageCover(images["Market_asset (1).png"], alpha, 1.06);
+  const time = performance.now() * 0.001;
+  const pivotX = W / 2;
+  const pivotY = H * 1.18;
+  const rayA = Math.sin(time * Math.PI * 0.16) * 0.026;
+  const rayB = Math.sin(time * Math.PI * 0.12 + Math.PI * 0.62) * -0.021;
+  const dotX = Math.sin(time * Math.PI * 0.14) * 8;
+  const dotY = Math.cos(time * Math.PI * 0.12) * 10;
+
+  drawImageCoverAround(images["Market_asset (2).png"], pivotX, pivotY, alpha * 0.76, rayA, 0, 0, 1.08);
+  drawImageCoverAround(images["Market_asset (4).png"], pivotX, pivotY, alpha * 0.66, rayB, 0, 0, 1.1);
+  drawImageCoverAround(images["Dots_main.png"], W / 2, H / 2, alpha * 0.34, 0, dotX, dotY, 1.05);
 }
 
 function drawGameEffects(alpha) {
@@ -947,12 +1082,28 @@ function drawAtmosphere(gameplayBlend) {
 
 function drawMenuTitle(alpha) {
   if (alpha <= 0.01) return;
+  const hero = menuHeroMetrics(0);
+  drawMenuTitleBetween(alpha, Math.max(112, H * 0.145), hero.y, hero.size, false);
+}
+
+function drawMenuTitleOuter(alpha) {
+  if (alpha <= 0.01) return;
+  const fieldTop = (H - BASE_H) / 2;
+  const heroSize = Math.min(BASE_W, BASE_H) * 0.27;
+  const heroY = fieldTop + BASE_H * 0.49;
+  drawMenuTitleBetween(alpha, 88, heroY, heroSize, true);
+}
+
+function drawMenuTitleBetween(alpha, hudClear, heroY, heroSize, compact) {
   const title = images["Shuriken-master-.png"];
   if (title && title.complete && title.naturalWidth) {
-    const titleWidth = W * 0.82;
+    const heroTop = heroY - heroSize * 0.88;
+    const available = Math.max(58, heroTop - hudClear);
+    const naturalWidth = W * (compact ? 0.76 : 0.82);
+    const naturalHeight = naturalWidth * (title.naturalHeight / title.naturalWidth);
+    const titleWidth = naturalHeight > available ? naturalWidth * (available / naturalHeight) * 0.94 : naturalWidth;
     const titleHeight = titleWidth * (title.naturalHeight / title.naturalWidth);
-    const safeTop = Math.max(112, H * 0.145);
-    const y = Math.max(H * 0.245, safeTop + titleHeight / 2);
+    const y = clamp((hudClear + heroTop) / 2, hudClear + titleHeight / 2, heroTop - titleHeight / 2);
     drawImageFitWidth(title, W / 2, y, titleWidth, 0, alpha * 0.92);
     return;
   }

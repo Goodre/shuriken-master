@@ -47,12 +47,11 @@ body[data-mode="gameover"] {
 }
 
 body[data-loading="loading"] {
-  background-color: #435a57;
-  background-image:
-    radial-gradient(circle at 50% 52%, rgba(139, 221, 105, 0.18), rgba(35, 52, 60, 0) 34%),
-    linear-gradient(180deg, #26384b 0%, #435a57 54%, #758371 100%);
+  background-color: #010226;
+  background-image: url("assets/Loading Logo.png");
   background-position: center;
-  background-size: cover;
+  background-size: min(108vw, calc(108vh * 9 / 16)) auto;
+  background-repeat: no-repeat;
 }
 
 .loading-screen {
@@ -61,20 +60,14 @@ body[data-loading="loading"] {
   z-index: 50;
   display: grid;
   place-items: center;
-  background:
-    radial-gradient(circle at 50% 52%, rgba(139, 221, 105, 0.18), rgba(35, 52, 60, 0) 34%),
-    linear-gradient(180deg, #26384b 0%, #435a57 54%, #758371 100%);
+  background: #010226 url("assets/Loading Logo.png") center / min(108vw, calc(108vh * 9 / 16)) auto no-repeat;
   opacity: 1;
   pointer-events: auto;
   transition: opacity 0.42s ease, visibility 0.42s ease;
 }
 
 .loading-screen img {
-  width: min(108vw, calc(108vh * 9 / 16));
-  max-width: none;
-  height: auto;
-  filter: drop-shadow(0 10px 16px rgba(0, 0, 0, 0.28));
-  animation: loadingLogoPulse 1.35s ease-in-out infinite alternate;
+  display: none;
 }
 
 body[data-loading="done"] .loading-screen {
@@ -100,10 +93,21 @@ button {
   cursor: pointer;
 }
 
+#background {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  display: block;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+}
+
 .game-shell {
   position: fixed;
   left: 50%;
   top: 50%;
+  z-index: 2;
   width: min(100vw, calc(100vh * 9 / 16));
   height: min(100vh, calc(100vw * 16 / 9));
   min-width: 0;
@@ -115,11 +119,79 @@ button {
   user-select: none;
 }
 
+body[data-outer="mobile"] .game-shell {
+  --mobile-vpad: calc((100vh - (100vw * 16 / 9)) / 2);
+  overflow: visible;
+}
+
+body[data-outer="mobile"] .hud {
+  top: calc(-1 * var(--mobile-vpad) + max(12px, env(safe-area-inset-top)));
+  left: max(14px, env(safe-area-inset-left));
+}
+
+body[data-outer="mobile"][data-mode="playing"] .toolrow {
+  top: calc(-1 * var(--mobile-vpad) + max(10px, env(safe-area-inset-top)));
+  right: max(-4px, calc(env(safe-area-inset-right) - 4px));
+}
+
+body[data-outer="mobile"][data-mode="menu"] .toolrow {
+  right: -18px;
+  bottom: calc(-1 * var(--mobile-vpad) + max(12px, env(safe-area-inset-bottom)));
+}
+
+body[data-outer="mobile"][data-mode="transition"] #pauseBtn {
+  top: calc(-1 * var(--mobile-vpad) + max(10px, env(safe-area-inset-top)));
+  right: max(-4px, calc(env(safe-area-inset-right) - 4px));
+}
+
+body[data-outer="mobile"][data-mode="transition"] #shopBtn {
+  right: -18px;
+  bottom: calc(-1 * var(--mobile-vpad) + max(12px, env(safe-area-inset-bottom)));
+}
+
+body[data-outer="mobile"] .shop {
+  top: calc(-1 * var(--mobile-vpad));
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  padding-top: max(28px, env(safe-area-inset-top));
+  padding-bottom: max(22px, env(safe-area-inset-bottom));
+}
+
+body[data-outer="mobile"][data-loading="done"] .shop {
+  background: transparent;
+}
+
+body[data-outer="mobile"][data-loading="done"] .shop::before,
+body[data-outer="mobile"][data-loading="done"] .shop::after {
+  display: none;
+}
+
+@keyframes mobileOuterRays {
+  from {
+    transform: rotate(-1.2deg) translate3d(-2px, -1px, 0);
+  }
+
+  to {
+    transform: rotate(1.2deg) translate3d(2px, 1px, 0);
+  }
+}
+
+@keyframes mobileOuterDots {
+  from {
+    transform: translate3d(-8px, -5px, 0);
+  }
+
+  to {
+    transform: translate3d(8px, 6px, 0);
+  }
+}
+
 #game {
   display: block;
   width: 100%;
   height: 100%;
-  background: #22344e;
+  background: transparent;
 }
 
 .hud {
