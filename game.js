@@ -265,8 +265,9 @@ function loadImages() {
 function resize() {
   viewW = Math.max(1, canvas.clientWidth);
   viewH = Math.max(1, canvas.clientHeight);
-  screenW = Math.max(1, window.innerWidth || document.documentElement.clientWidth || viewW);
-  screenH = Math.max(1, window.innerHeight || document.documentElement.clientHeight || viewH);
+  const visual = window.visualViewport;
+  screenW = Math.max(1, visual?.width || window.innerWidth || document.documentElement.clientWidth || viewW);
+  screenH = Math.max(1, visual?.height || window.innerHeight || document.documentElement.clientHeight || viewH);
   renderDpr = Math.min(window.devicePixelRatio || 1, 2);
   W = BASE_W;
   H = BASE_H;
@@ -278,6 +279,7 @@ function resize() {
   backgroundCanvas.width = Math.floor(screenW * renderDpr);
   backgroundCanvas.height = Math.floor(screenH * renderDpr);
   document.body.dataset.outer = usesMobileOuterBackground() ? "mobile" : "desktop";
+  document.body.style.setProperty("--mobile-vpad", `${Math.max(0, (screenH - viewH) / 2)}px`);
   applyGameTransform();
 }
 
@@ -1650,6 +1652,10 @@ ui.closeShopBtn.addEventListener("click", closeShop);
 ui.shopPrice.addEventListener("click", activateFocusedSkin);
 
 window.addEventListener("resize", resize);
+if (window.visualViewport) {
+  window.visualViewport.addEventListener("resize", resize);
+  window.visualViewport.addEventListener("scroll", resize);
+}
 
 const loadingHold = new Promise((resolve) => window.setTimeout(resolve, 1050));
 

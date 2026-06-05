@@ -99,7 +99,7 @@ button {
   z-index: 0;
   display: block;
   width: 100vw;
-  height: 100vh;
+  height: 100dvh;
   pointer-events: none;
 }
 
@@ -108,8 +108,8 @@ button {
   left: 50%;
   top: 50%;
   z-index: 2;
-  width: min(100vw, calc(100vh * 9 / 16));
-  height: min(100vh, calc(100vw * 16 / 9));
+  width: min(100vw, calc(100dvh * 9 / 16));
+  height: min(100dvh, calc(100vw * 16 / 9));
   min-width: 0;
   min-height: 0;
   container-type: size;
@@ -120,7 +120,6 @@ button {
 }
 
 body[data-outer="mobile"] .game-shell {
-  --mobile-vpad: calc((100vh - (100vw * 16 / 9)) / 2);
   overflow: visible;
 }
 
